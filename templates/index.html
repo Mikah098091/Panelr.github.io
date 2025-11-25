@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ceiling Panel Layout Generator</title>
+    <style>
+        * { box-sizing: border-box; }
+        
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        body.dark {
+            background: #121212;
+            color: #ddd;
+        }
+
+        .header {
+            background: #fff;
+            padding: 15px 20px;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        body.dark .header {
+            background: #1b1b1b;
+            border-bottom-color: #333;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .toggle-btn {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .container {
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        body.dark .card {
+            background: #1b1b1b;
+        }
+
+        .sidebar {
+            width: 300px;
+            flex-shrink: 0;
+        }
+
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .divider {
+            height: 1px;
+            background: #ddd;
+            margin: 20px 0;
+        }
+
+        body.dark .divider {
+            background: #333;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 18px;
+        }
+
+        h3 {
+            font-size: 16px;
+            margin: 10px 0;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        input[type="number"], input[type="text"], input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+        }
+
+        body.dark input[type="number"], 
+        body.dark input[type="text"] {
+            background: #2a2a2a;
+            color: #ddd;
+            border-color: #444;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: monospace;
+            background: white;
+        }
+
+        body.dark textarea {
+            background: #2a2a2a;
+            color: #ddd;
+            border-color: #444;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 10px;
+            background: #007bff;
+            border: none;
+            color: white;
+            margin: 6px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn:hover {
+            background: #0056b3;
+        }
+
+        .preview-box {
+            background: #e0e0e0;
+            min-height: 500px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 4px;
+            overflow: auto;
+        }
+
+        body.dark .preview-box {
+            background: #2a2a2a;
+        }
+
+        #previewCanvas {
+            max-width: 100%;
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="light">
+
+<div class="header">
+    <h1>Ceiling Panel Layout Generator</h1>
+    <button id="themeToggle" class="toggle-btn">🌙 Dark</button>
+</div>
+
+<div class="container">
+    <div class="card sidebar">
+        <h2>Offsets Input</h2>
+
+        <label>Upload CSV</label>
+        <input type="file" id="offsetFile" accept=".csv">
+
+        <button class="btn" id="downloadCSV">Download Edited CSV</button>
+
+        <div class="divider"></div>
+
+        <h3>Generate Offsets</h3>
+
+        <label>Count</label>
+        <input type="number" id="count" value="100">
+        
+        <label>Min (mm)</label>
+        <input type="number" id="minOffset" value="0">
+        
+        <label>Max (mm)</label>
+        <input type="number" id="maxOffset" value="3000">
+
+        <button class="btn" id="generateOffsets">Generate Offsets</button>
+
+        <div class="divider"></div>
+
+        <h2>Room & Panel</h2>
+
+        <label>Room width (mm)</label>
+        <input type="number" id="roomW" value="20000">
+        
+        <label>Room length (mm)</label>
+        <input type="number" id="roomL" value="11000">
+        
+        <label>Panel width (mm)</label>
+        <input type="number" id="panelW" value="200">
+        
+        <label>Panel length (mm)</label>
+        <input type="number" id="panelL" value="3000">
+
+        <button class="btn" id="renderBtn">Render Layout</button>
+        <button class="btn" id="exportDXF">Export DXF</button>
+    </div>
+
+    <div class="main">
+        <div class="card">
+            <h2>Layout Preview</h2>
+            <div class="preview-box">
+                <canvas id="previewCanvas"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Edit Offsets</h2>
+            <textarea id="offsetEditor" placeholder="Enter comma-separated offset values in mm..."></textarea>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============ THEME TOGGLE ============
+document.getElementById("themeToggle").onclick = () => {
+    document.body.classList.toggle("dark");
+    document.body.classList.toggle("light");
+    const isDark = document.body.classList.contains("dark");
+    document.getElementById("themeToggle").textContent = isDark ? "☀️ Light" : "🌙 Dark";
+};
+
+// ============ GENERATE RANDOM OFFSETS ============
+document.getElementById("generateOffsets").onclick = () => {
+    const count = parseInt(document.getElementById("count").value);
+    const min = parseInt(document.getElementById("minOffset").value);
+    const max = parseInt(document.getElementById("maxOffset").value);
+    
+    const offsets = [];
+    for (let i = 0; i < count; i++) {
+        offsets.push(Math.floor(Math.random() * (max - min + 1)) + min);
+    }
+    
+    document.getElementById("offsetEditor").value = offsets.join(",");
+};
+
+// ============ PARSE OFFSETS ============
+function parseOffsets() {
+    const text = document.getElementById("offsetEditor").value;
+    return text.split(",")
+        .map(x => parseInt(x.trim()))
+        .filter(v => !isNaN(v));
+}
+
+// ============ DRAW LAYOUT ON CANVAS ============
+function drawLayout(offsets, roomW, roomL, panelW, panelL) {
+    const canvas = document.getElementById("previewCanvas");
+    const ctx = canvas.getContext("2d");
+    
+    // Set canvas size
+    const scale = 0.05; // Scale factor for display
+    canvas.width = roomW * scale;
+    canvas.height = roomL * scale;
+    
+    // Clear canvas
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    const nCols = Math.floor(roomW / panelW);
+    
+    for (let col = 0; col < nCols; col++) {
+        const x0 = col * panelW * scale;
+        const offset = offsets[col % offsets.length] % panelL;
+        let y = 0;
+        
+        // Draw offset panel
+        if (offset > 0) {
+            ctx.fillStyle = "#696969"; // dimgray
+            ctx.fillRect(x0, y * scale, panelW * scale, offset * scale);
+            ctx.strokeStyle = "#000000";
+            ctx.strokeRect(x0, y * scale, panelW * scale, offset * scale);
+            y += offset;
+        }
+        
+        // Draw full panels
+        const nFull = Math.floor((roomL - y) / panelL);
+        for (let i = 0; i < nFull; i++) {
+            ctx.fillStyle = "#d3d3d3"; // lightgray
+            ctx.fillRect(x0, y * scale, panelW * scale, panelL * scale);
+            ctx.strokeStyle = "#000000";
+            ctx.strokeRect(x0, y * scale, panelW * scale, panelL * scale);
+            y += panelL;
+        }
+        
+        // Draw last cut panel
+        const remainder = roomL - y;
+        if (remainder > 0.1) {
+            ctx.fillStyle = "#d3d3d3"; // lightgray
+            ctx.fillRect(x0, y * scale, panelW * scale, remainder * scale);
+            ctx.strokeStyle = "#000000";
+            ctx.strokeRect(x0, y * scale, panelW * scale, remainder * scale);
+        }
+    }
+}
+
+// ============ RENDER BUTTON ============
+document.getElementById("renderBtn").onclick = () => {
+    const offsets = parseOffsets();
+    
+    if (offsets.length === 0) {
+        alert("No offsets provided!");
+        return;
+    }
+    
+    const roomW = parseFloat(document.getElementById("roomW").value);
+    const roomL = parseFloat(document.getElementById("roomL").value);
+    const panelW = parseFloat(document.getElementById("panelW").value);
+    const panelL = parseFloat(document.getElementById("panelL").value);
+    
+    drawLayout(offsets, roomW, roomL, panelW, panelL);
+};
+
+// ============ GENERATE DXF ============
+function generateDXF(offsets, roomW, roomL, panelW, panelL) {
+    let dxf = `0
+SECTION
+2
+HEADER
+9
+$ACADVER
+1
+AC1015
+0
+ENDSEC
+0
+SECTION
+2
+ENTITIES
+`;
+    
+    const nCols = Math.floor(roomW / panelW);
+    
+    for (let col = 0; col < nCols; col++) {
+        const x0 = col * panelW;
+        const offset = offsets[col % offsets.length] % panelL;
+        let y = 0;
+        
+        // Add offset panel
+        if (offset > 0) {
+            dxf += `0
+LWPOLYLINE
+100
+AcDbEntity
+100
+AcDbPolyline
+90
+4
+70
+1
+10
+${x0}
+20
+${y}
+10
+${x0 + panelW}
+20
+${y}
+10
+${x0 + panelW}
+20
+${y + offset}
+10
+${x0}
+20
+${y + offset}
+`;
+            y += offset;
+        }
+        
+        // Add full panels
+        const nFull = Math.floor((roomL - y) / panelL);
+        for (let i = 0; i < nFull; i++) {
+            dxf += `0
+LWPOLYLINE
+100
+AcDbEntity
+100
+AcDbPolyline
+90
+4
+70
+1
+10
+${x0}
+20
+${y}
+10
+${x0 + panelW}
+20
+${y}
+10
+${x0 + panelW}
+20
+${y + panelL}
+10
+${x0}
+20
+${y + panelL}
+`;
+            y += panelL;
+        }
+        
+        // Add last cut panel
+        const remainder = roomL - y;
+        if (remainder > 0.1) {
+            dxf += `0
+LWPOLYLINE
+100
+AcDbEntity
+100
+AcDbPolyline
+90
+4
+70
+1
+10
+${x0}
+20
+${y}
+10
+${x0 + panelW}
+20
+${y}
+10
+${x0 + panelW}
+20
+${y + remainder}
+10
+${x0}
+20
+${y + remainder}
+`;
+        }
+    }
+    
+    dxf += `0
+ENDSEC
+0
+EOF
+`;
+    
+    return dxf;
+}
+
+// ============ EXPORT DXF BUTTON ============
+document.getElementById("exportDXF").onclick = () => {
+    const offsets = parseOffsets();
+    
+    if (offsets.length === 0) {
+        alert("No offsets provided!");
+        return;
+    }
+    
+    const roomW = parseFloat(document.getElementById("roomW").value);
+    const roomL = parseFloat(document.getElementById("roomL").value);
+    const panelW = parseFloat(document.getElementById("panelW").value);
+    const panelL = parseFloat(document.getElementById("panelL").value);
+    
+    const dxfContent = generateDXF(offsets, roomW, roomL, panelW, panelL);
+    
+    // Download DXF file
+    const blob = new Blob([dxfContent], { type: "application/dxf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "panel_layout.dxf";
+    a.click();
+    URL.revokeObjectURL(url);
+};
+
+// ============ CSV UPLOAD ============
+document.getElementById("offsetFile").onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const text = event.target.result;
+        const lines = text.split("\n");
+        
+        // Check if first line is header
+        const hasHeader = lines[0].toLowerCase().includes("offset");
+        const startIndex = hasHeader ? 1 : 0;
+        
+        const offsets = [];
+        for (let i = startIndex; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (line) {
+                const value = parseInt(line.split(",")[0]);
+                if (!isNaN(value)) {
+                    offsets.push(value);
+                }
+            }
+        }
+        
+        document.getElementById("offsetEditor").value = offsets.join(",");
+    };
+    reader.readAsText(file);
+};
+
+// ============ DOWNLOAD CSV ============
+document.getElementById("downloadCSV").onclick = () => {
+    const offsets = parseOffsets();
+    
+    if (offsets.length === 0) {
+        alert("No offsets to download!");
+        return;
+    }
+    
+    let csv = "offset_mm\n";
+    csv += offsets.join("\n");
+    
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "offsets.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+};
+</script>
+
+</body>
+</html>
